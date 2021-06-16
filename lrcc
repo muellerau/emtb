@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Local Resolution Control Center (LRCC)
+# Batch processor for blocres and bloc
+# (c) 2021 - Andreas Mueller
+# --- no warranty, no liability; use at own risk ---
+#
+# Optimized for cryosparc maps at the moment
+#
+
+
+function run_bloc () {
+	# get input files
+	mapA=($(find "$indir" -name *map_half_A.mrc | sort -r))
+	mapB=($(find "$indir" -name *map_half_B.mrc | sort -r))
+	orimap=($(find "$indir" -name *map.mrc | sort -r))
+	#smap=($(find "$indir" -name *map_sharp.mrc | sort -r))
+
+	# build i/o variables
+	mapA_path=${mapA[0]}
+	mapB_path=${mapB[0]}
+	orimap_path=${orimap[0]}
+	
+	mkdir -p $outdir
+	locres_map_path="${outdir}/$locres_map"
+	
+	blocres -verbose 7 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $mapA_path $mapB_path $locres_map_path &> ${outdir}/$locres_log
+	blocfilt -verbose 7 -box $bxsz $smpl_cmd -Res $locres_map $orimap_path $locfil_map_path &> ${outdir}/$locfil_log
+}
+
+# default values
+bxsz=20
+target="."
+ori="0,0,0"
+flipmap=FALSE
+
+hlpmsg="program usage and help message goes here"
+
+# parse arguments
+
+while getopts ":hb:fi:jo:p:r:t:x:" opt; do
+  case ${opt} in
+    h )
+      echo $hlpmsg
+      exit 0
+      ;;
+    b )
+      bxsz=$OPTARG
+      ;;
+    f )
+      flipmap=TRUE
+      ;;
+    i )
+      indir="$OPTARG"
+      ;;
+    j )
+      jobs="$OPTARG"
+      ;;
+    o )
+      outdir="$OPTARG"
+      ;;
+    p )
+      smpl_cmd="-sampling $OPTARG"
+      ;;
+    r )
+      maxres_cmd="-maxresolution $OPTARG"
+      ;;
+    t )
+      target=$OPTARG
+      ;;
+    x )
+      ori=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+# execution
+
+run_bloc
+
+exit 1
