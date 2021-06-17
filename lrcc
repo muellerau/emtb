@@ -10,29 +10,32 @@ export LC_ALL=C # fix locale setting for consistent sort
 SECONDS=0
 
 function run_bloc () {
-    # get input files
-    mapA=($(find "$idir_cur" -name *map_half_A.mrc | sort -r))
-    mapB=($(find "$idir_cur" -name *map_half_B.mrc | sort -r))
+    local idir_cur="$1"
+    local odir_cur="$2"
+
+    # gather input files
+    local mapA=($(find "$idir_cur" -name *map_half_A.mrc | sort -r))
+    local mapB=($(find "$idir_cur" -name *map_half_B.mrc | sort -r))
     #umap=($(find "$idir_cur" -name *map.mrc | sort -r))
-    smap=($(find "$idir_cur" -name *map_sharp.mrc | sort -r))
-    rmask=($(find "$idir_cur" -name *mask_refine.mrc | sort -r))
+    local smap=($(find "$idir_cur" -name *map_sharp.mrc | sort -r))
+    local rmask=($(find "$idir_cur" -name *mask_refine.mrc | sort -r))
     
     # build i/o variables
-    mapA_path=${mapA[0]}
-    mapB_path=${mapB[0]}
-    orimap_path=${smap[0]}
+    local mapA_path=${mapA[0]}
+    local mapB_path=${mapB[0]}
+    local orimap_path=${smap[0]}
     
     # choose mask file
     if [ -z "$nomask" ]; then
         if [ -z "$mask" ]; then
             ! [ -f "$rmask" ] && echo "Error: $rmask_path does not exist!"
-            rmask_path="-Mask ${rmask[0]}"
+            local rmask_path="-Mask ${rmask[0]}"
         else
             ! [ -f "$mask" ] && echo "Error: $rmask_path does not exist!"
-            rmask_path="-Mask $mask"
+            local rmask_path="-Mask $mask"
         fi
     else
-        rmask_path=""
+        local rmask_path=""
     fi
 
     #check file existence
@@ -40,34 +43,35 @@ function run_bloc () {
     ! [ -f "$mapB_path" ] && echo "Error: $mapB_path does not exist!"
     ! [ -f "$orimap_path" ] && echo "Error: $orimap_path does not exist!"
     
-    locres_base=$(basename "$orimap_path")
-    #locfil_map=$(basename "$orimap_path")
+    local locres_base=$(basename "$orimap_path")
+    #local locfil_map=$(basename "$orimap_path")
     
     mkdir -p "$odir_cur"
-    locres_map_path="${odir_cur}/${locres_base::-10}_blocres.mrc"
-    locfil_map_path="${odir_cur}/${locres_base::-4}_blocfilt.mrc"
-    #locres_log="${odir_cur}/${locres_base::-10}_blocres.log" #turned off logging, files get too big, need to log lrcc instead/find out data streams
-    #locfil_log="${odir_cur}/${locres_base::-4}_blocfilt.log"
+    local locres_map_path="${odir_cur}/${locres_base::-10}_blocres.mrc"
+    local locfil_map_path="${odir_cur}/${locres_base::-4}_blocfilt.mrc"
+    local locres_log="${odir_cur}/${locres_base::-10}_blocres.log"
+    local locfil_log="${odir_cur}/${locres_base::-4}_blocfilt.log"
 
     # inform user
     printf '%b\n' "Processing blocres for $idir_cur
     blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt $mapA_path $mapB_path $locres_map_path"
     
-    START="$(date +%s)"
+    local START="$(date +%s)"
     
-    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" &> /dev/null #"$locres_log"
+    blocres -verbose 3 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd "$rmask_path" $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
     
-    DURATION=$[ $(date +%s) - ${START} ]
+    local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocres completed in ${DURATION} seconds"
 
     
     printf '%b\n' "Processing blocfilt for $idir_cur
     blocfilt -verbose 1 -box $bxsz $smpl_cmd -Resolution $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path"
     
-    START="$(date +%s)"
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> /dev/null #"$locfil_log"
+    local START="$(date +%s)"
     
-    DURATION=$[ $(date +%s) - ${START} ]
+    blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" "$rmask_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
+    
+    local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
 }
 
@@ -79,8 +83,9 @@ flipmap="FALSE"
 jbs=(0)
 blocres_opt=""
 blocfilt_opt=""
-mask=""
-nomask=""
+mask="null"
+nomask="FALSE"
+N=1
 
 hlpmsg="Local Resolution Control Center - LRCC
 
@@ -115,10 +120,13 @@ Optional arguments:
     -j \"job1 job2 ...\"    Specify cryoSPARC jobs to process. If -j is not used,
                              LRCC will search the input directory for maps.
 
-    -m mask.mrc             Provide a custom mask for blocres.
+    -m mask.mrc             Provide a custom mask for blocres/blocfilt.
                              default: *mask_refine.mrc
 
     -M                      Turn off masking and compute full box.
+
+    -n processes            Number of processes to parallelize.
+                             default: 1
 
     -o x,y,z                Set origin coordinates.
                              default: 0,0,0
@@ -134,7 +142,7 @@ Optional arguments:
 "
 
 # parse arguments
-while getopts ":hb:fj:mMo:p:r:x:y:" opt; do
+while getopts ":hb:fj:mMn:o:p:r:x:y:" opt; do
   case ${opt} in
     h )
       printf '%b\n' "$hlpmsg"
@@ -157,6 +165,8 @@ while getopts ":hb:fj:mMo:p:r:x:y:" opt; do
     M )
       nomask="TRUE"
       ;;
+    n )
+      N=$OPTARG
     o )
       ori="$OPTARG"
       ;;
@@ -212,9 +222,10 @@ for j in $jbs; do
         echo "Warning: $idir_cur does not exist! Skipping ..."
         continue
     fi
-    
+
     # do it
-    run_bloc
+    ((i=i%N)); ((i++==0)) && wait
+    run_bloc "$idir_cur" "$odir_cur" &
 done
 
 echo "Completed in $SECONDS seconds."
