@@ -24,14 +24,19 @@ function run_bloc () {
     mapB_path=${mapB[0]}
     orimap_path=${smap[0]}
 	
-	echo $mapA_path $mapB_path $orimap_path
-	
     # choose mask file
     if [ -z nomask ]; then
         [ -z mask ] && rmask_path=${rmask[0]}
+		! [ -f "$rmask_path" ] && echo "Error: $rmask_path does not exist!"
     else
         rmask_path=""
     fi
+
+	#check file existence
+	! [ -f "$mapA_path" ] && echo "Error: $mapA_path does not exist!"
+	! [ -f "$mapB_path" ] && echo "Error: $mapB_path does not exist!"
+	! [ -f "$orimap_path" ] && echo "Error: $orimap_path does not exist!"
+	
     
     locres_base=$(basename "$orimap_path")
     #locfil_map=$(basename "$orimap_path")
