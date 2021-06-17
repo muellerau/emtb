@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # Local Resolution Control Center (LRCC)
-# Batch processor for blocres and bloc
+# Batch processor for blocres and bloc on cryoSPARC job output.
 # (c) Andreas U Mueller - 2021
 # --- no warranty, no liability; use at own risk ---
-#
-# Optimized for cryosparc maps at the moment
 #
 
 function run_bloc () {
@@ -52,7 +50,10 @@ mask=""
 nomask=""
 
 hlpmsg="Local Resolution Control Center - LRCC
-Batch process local resolution and local filtering using blocres/blocfilt.
+
+Batch process cryoSPARC job output with local resolution and local filtering
+using blocres/blocfilt.
+
 (c) Andreas U Mueller - 2021
 
 Usage: lrcc [-h...] input [output]
@@ -78,7 +79,8 @@ Optional arguments:
 
     -f                    Flip output maps (uses chimerax).
 
-    -j 'job1 job2 ...'    Specify cryoSPARC jobs to process.
+    -j 'job1 job2 ...'    Specify cryoSPARC jobs to process. If -j is not used,
+                           LRCC will search the input directory for maps.
 
     -m mask.mrc           Provide a custom mask for blocres.
                            default: *mask_refine.mrc
@@ -168,8 +170,8 @@ for j in jbs; do
         idir_cur="$idir"
         odir_cur="$odir"
     else
-        idir_cur="$idir/$j"
-        odir_cur="$odir/$j"
+        idir_cur="${idir}/$j"
+        odir_cur="${odir}/$j"
     fi
     
     # skip if job folder doesn't exist
