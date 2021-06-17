@@ -62,10 +62,10 @@ function run_bloc () {
 
     
     printf '%b\n' "Processing blocfilt for $idir_cur
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res $locres_map_path $rmask_path $blocfilt_opt $orimap_path $locfil_map_path"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path"
     
     START="$(date +%s)"
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" "$rmask_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> /dev/null #"$locfil_log"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> /dev/null #"$locfil_log"
     
     DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
