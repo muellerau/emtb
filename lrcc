@@ -63,6 +63,7 @@ Map files are recognized by pattern matching
 half map A        *map_half_A.mrc
 half map B        *map_half_B.mrc
 sharpened map     *map_sharp.mrc
+mask              *mask_refine.mrc
 
 This is the pattern employed by the cryoSPARC tools, so LRCC can process
 map files directly from cryoSPARC job directories.
