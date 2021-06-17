@@ -6,6 +6,8 @@
 # --- no warranty, no liability; use at own risk ---
 #
 
+SECONDS=0
+
 function run_bloc () {
     # get input files
     mapA=($(find "$idir_cur" -name *map_half_A.mrc | sort -r))
@@ -34,8 +36,8 @@ function run_bloc () {
     locres_log="${odir_cur}/${j}/${locres_base::-4}_blocres.log"
     locfil_log="${odir_cur}/${j}/${locres_base::-4}_blocfilt.log"
     
-    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt $mapA_path $mapB_path $locres_map_path &> "${odir_cur}/$locres_log"
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path &> "${odir_cur}/$locfil_log"
+    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" &> "$locres_log"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> "$locfil_log"
 }
 
 # default values
@@ -183,5 +185,8 @@ for j in jbs; do
     # do it
     run_bloc
 done
+
+echo "Completed in $SECONDS seconds."
+exit 0
 
 exit 2
