@@ -6,6 +6,7 @@
 # --- no warranty, no liability; use at own risk ---
 #
 
+export LC_ALL=C # fix locale setting for consistent sort
 SECONDS=0
 
 function run_bloc () {
@@ -36,7 +37,7 @@ function run_bloc () {
     locres_log="${odir_cur}/${j}/${locres_base::-4}_blocres.log"
     locfil_log="${odir_cur}/${j}/${locres_base::-4}_blocfilt.log"
     
-    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" &> "$locres_log"
+    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd "$rmask_path" $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" &> "$locres_log"
     blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> "$locfil_log"
 }
 
@@ -106,7 +107,7 @@ Optional arguments:
 while getopts ":hb:fjmMo:p:r:x:y:" opt; do
   case ${opt} in
     h )
-      echo $hlpmsg
+      printf '%b\n' "$hlpmsg"
       exit 0
       ;;
     b )
@@ -127,7 +128,7 @@ while getopts ":hb:fjmMo:p:r:x:y:" opt; do
       nomask=TRUE
       ;;
     o )
-      ori=$OPTARG
+      ori="$OPTARG"
       ;;
     p )
       smpl_cmd="-sampling $OPTARG"
@@ -157,7 +158,7 @@ odir="$2"
 
 if [ -z "$idir" ]; then
     echo "Error: No input directory given."
-    echo $hlpmsg
+    printf '%b\n' "$hlpmsg"
     exit 1
 fi
 
