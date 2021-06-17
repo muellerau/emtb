@@ -62,10 +62,10 @@ function run_bloc () {
 
     
     printf '%b\n' "Processing blocfilt for $idir_cur
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Resolution $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path"
     
     START="$(date +%s)"
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> /dev/null #"$locfil_log"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> /dev/null #"$locfil_log"
     
     DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
@@ -89,7 +89,7 @@ using blocres/blocfilt.
 
 (c) Andreas U Mueller - 2021
 
-Usage: lrcc [-h...] input [output]
+Usage: lrcc [options] input_folder [output_folder]
 
 Point to a directory that contains half maps and sharpened maps.
 
@@ -103,7 +103,7 @@ This is the pattern employed by the cryoSPARC tools, so LRCC can process
 map files directly from cryoSPARC job directories.
 
 Required arguments:
-    none
+    input_folder
 Optional arguments:
     -h                      Print this message.
 
@@ -146,10 +146,10 @@ while getopts ":hb:fj:mMo:p:r:x:y:" opt; do
     f )
       flipmap="TRUE" # not implemented yet
       echo "sorry, not implemented yet."
-      exit 1
+      exit 2
       ;;
     j )
-      jbs=($OPTARG)
+      jbs=("$OPTARG")
       ;;
     m )
       mask="$OPTARG"
