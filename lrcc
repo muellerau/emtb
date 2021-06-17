@@ -23,8 +23,8 @@ function run_bloc () {
     orimap_path=${smap[0]}
     
     # choose mask file
-    if [ -z nomask ]; then
-        if [ -z mask ]; then
+    if [ -z "$nomask" ]; then
+        if [ -z "$mask" ]; then
 			! [ -f "$rmask" ] && echo "Error: $rmask_path does not exist!"
 			rmask_path="-Mask ${rmask[0]}"
 		else
