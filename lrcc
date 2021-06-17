@@ -17,10 +17,15 @@ function run_bloc () {
     smap=($(find "$idir_cur" -name *map_sharp.mrc | sort -r))
     rmask=($(find "$idir_cur" -name *mask_refine.mrc | sort -r))
 
+	echo $mapA $mapB $smap $rmask
+
     # build i/o variables
     mapA_path=${mapA[0]}
     mapB_path=${mapB[0]}
     orimap_path=${smap[0]}
+	
+	echo $mapA_path $mapB_path $orimap_path
+	
     # choose mask file
     if [ -z nomask ]; then
         [ -z mask ] && rmask_path=${rmask[0]}
@@ -32,10 +37,10 @@ function run_bloc () {
     #locfil_map=$(basename "$orimap_path")
     
     mkdir -p "$odir_cur"
-    locres_map_path="${odir_cur}/${j}/${locres_base::-4}_blocres.mrc"
-    locfil_map_path="${odir_cur}/${j}/${locres_base::-4}_blocfilt.mrc"
-    locres_log="${odir_cur}/${j}/${locres_base::-4}_blocres.log"
-    locfil_log="${odir_cur}/${j}/${locres_base::-4}_blocfilt.log"
+    locres_map_path="${odir_cur}/${locres_base::-4}_blocres.mrc"
+    locfil_map_path="${odir_cur}/${locres_base::-4}_blocfilt.mrc"
+    locres_log="${odir_cur}/${locres_base::-4}_blocres.log"
+    locfil_log="${odir_cur}/${locres_base::-4}_blocfilt.log"
     
     blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd "$rmask_path" $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" &> "$locres_log"
     blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> "$locfil_log"
@@ -104,7 +109,7 @@ Optional arguments:
 "
 
 # parse arguments
-while getopts ":hb:fjmMo:p:r:x:y:" opt; do
+while getopts ":hb:fj:mMo:p:r:x:y:" opt; do
   case ${opt} in
     h )
       printf '%b\n' "$hlpmsg"
@@ -167,16 +172,16 @@ fi
 ### execution
 
 # iterate over jobs and process
-for j in jbs; do
+for j in $jbs; do
     # are jobs used?
-    if [ j -eq 0 ]; then
+    if [ j = 0 ]; then
         idir_cur="$idir"
         odir_cur="$odir"
     else
         idir_cur="${idir}/$j"
         odir_cur="${odir}/$j"
     fi
-    
+	echo $idir_cur $odir_cur
     # skip if job folder doesn't exist
     if ! [ -d "$idir_cur" ]; then
         echo "Warning: $idir_cur does not exist! Skipping ..."
