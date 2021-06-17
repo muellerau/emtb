@@ -2,30 +2,42 @@
 
 # Local Resolution Control Center (LRCC)
 # Batch processor for blocres and bloc
-# (c) 2021 - Andreas Mueller
+# (c) Andreas U Mueller - 2021
 # --- no warranty, no liability; use at own risk ---
 #
 # Optimized for cryosparc maps at the moment
 #
 
-
 function run_bloc () {
-	# get input files
-	mapA=($(find "$indir" -name *map_half_A.mrc | sort -r))
-	mapB=($(find "$indir" -name *map_half_B.mrc | sort -r))
-	orimap=($(find "$indir" -name *map.mrc | sort -r))
-	#smap=($(find "$indir" -name *map_sharp.mrc | sort -r))
+    # get input files
+    mapA=($(find "$idir_cur" -name *map_half_A.mrc | sort -r))
+    mapB=($(find "$idir_cur" -name *map_half_B.mrc | sort -r))
+    #umap=($(find "$idir_cur" -name *map.mrc | sort -r))
+    smap=($(find "$idir_cur" -name *map_sharp.mrc | sort -r))
+    rmask=($(find "$idir_cur" -name *mask_refine.mrc | sort -r))
 
-	# build i/o variables
-	mapA_path=${mapA[0]}
-	mapB_path=${mapB[0]}
-	orimap_path=${orimap[0]}
-	
-	mkdir -p $outdir
-	locres_map_path="${outdir}/$locres_map"
-	
-	blocres -verbose 7 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $mapA_path $mapB_path $locres_map_path &> ${outdir}/$locres_log
-	blocfilt -verbose 7 -box $bxsz $smpl_cmd -Res $locres_map $orimap_path $locfil_map_path &> ${outdir}/$locfil_log
+    # build i/o variables
+    mapA_path=${mapA[0]}
+    mapB_path=${mapB[0]}
+    orimap_path=${smap[0]}
+    # choose mask file
+    if [ -z nomask ]; then
+        [ -z mask ] && rmask_path=${rmask[0]}
+    else
+        rmask_path=""
+    fi
+    
+    locres_base=$(basename "$orimap_path")
+    #locfil_map=$(basename "$orimap_path")
+    
+    mkdir -p "$odir_cur"
+    locres_map_path="${odir_cur}/${j}/${locres_base::-4}_blocres.mrc"
+    locfil_map_path="${odir_cur}/${j}/${locres_base::-4}_blocfilt.mrc"
+    locres_log="${odir_cur}/${j}/${locres_base::-4}_blocres.log"
+    locfil_log="${odir_cur}/${j}/${locres_base::-4}_blocfilt.log"
+    
+    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt $mapA_path $mapB_path $locres_map_path &> "${odir_cur}/$locres_log"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path &> "${odir_cur}/$locfil_log"
 }
 
 # default values
@@ -33,12 +45,60 @@ bxsz=20
 target="."
 ori="0,0,0"
 flipmap=FALSE
+jbs=(0)
+blocres_opt=""
+blocfilt_opt=""
+mask=""
+nomask=""
 
-hlpmsg="program usage and help message goes here"
+hlpmsg="Local Resolution Control Center - LRCC
+Batch process local resolution and local filtering using blocres/blocfilt.
+(c) Andreas U Mueller - 2021
+
+Usage: lrcc [-h...] input [output]
+
+Point to a directory that contains half maps and sharpened maps.
+
+Map files are recognized by pattern matching
+half map A        *map_half_A.mrc
+half map B        *map_half_B.mrc
+sharpened map     *map_sharp.mrc
+
+This is the pattern employed by the cryoSPARC tools, so LRCC can process
+map files directly from cryoSPARC job directories.
+
+Required arguments:
+    none
+Optional arguments:
+    -h                    Print this message.
+
+    -b box_size           Choose kernel size for blocres/blocfilt
+                           default: 20
+
+    -f                    Flip output maps (uses chimerax).
+
+    -j 'job1 job2 ...'    Specify cryoSPARC jobs to process.
+
+    -m mask.mrc           Provide a custom mask for blocres.
+                           default: *mask_refine.mrc
+
+    -M                    Turn off masking and compute full box.
+
+    -o x,y,z              Set origin coordinates.
+                           default: 0,0,0
+
+    -p pixel_size         Set pixel size (A/px).
+
+    -r resolution         Set maximum resolution in data (in Angstrom).
+                           Generally, twice the pixel size.
+
+    -x '-arg1 -arg2 ...'  Pass additional arguments to blocres.
+
+    -y '-arg1 -arg2 ...'  Pass additional arguments to blocfilt.
+"
 
 # parse arguments
-
-while getopts ":hb:fi:jo:p:r:t:x:" opt; do
+while getopts ":hb:fjmMo:p:r:x:y:" opt; do
   case ${opt} in
     h )
       echo $hlpmsg
@@ -48,16 +108,21 @@ while getopts ":hb:fi:jo:p:r:t:x:" opt; do
       bxsz=$OPTARG
       ;;
     f )
-      flipmap=TRUE
-      ;;
-    i )
-      indir="$OPTARG"
+      flipmap=TRUE # not implemented yet
+      echo "sorry, not implemented yet."
+      exit 1
       ;;
     j )
-      jobs="$OPTARG"
+      jbs=($OPTARG)
+      ;;
+    m )
+      mask="-Mask $OPTARG"
+      ;;
+    M )
+      nomask=TRUE
       ;;
     o )
-      outdir="$OPTARG"
+      ori=$OPTARG
       ;;
     p )
       smpl_cmd="-sampling $OPTARG"
@@ -65,11 +130,11 @@ while getopts ":hb:fi:jo:p:r:t:x:" opt; do
     r )
       maxres_cmd="-maxresolution $OPTARG"
       ;;
-    t )
-      target=$OPTARG
-      ;;
     x )
-      ori=$OPTARG
+      blocres_opt="$OPTARG"
+      ;;
+    y )
+      blocfilt_opt="$OPTARG"
       ;;
     \? )
       echo "Invalid option: $OPTARG" 1>&2
@@ -81,8 +146,39 @@ while getopts ":hb:fi:jo:p:r:t:x:" opt; do
 done
 shift $((OPTIND -1))
 
-# execution
+# parse positional arguments
+idir="$1"
+odir="$2"
 
-run_bloc
+if [ -z "$idir" ]; then
+    echo "Error: No input directory given."
+    echo $hlpmsg
+    exit 1
+fi
 
-exit 1
+[ -z "$odir" ] && odir="."
+
+### execution
+
+# iterate over jobs and process
+for j in jbs; do
+    # are jobs used?
+    if [ j -eq 0 ]; then
+        idir_cur="$idir"
+        odir_cur="$odir"
+    else
+        idir_cur="$idir/$j"
+        odir_cur="$odir/$j"
+    fi
+    
+    # skip if job folder doesn't exist
+    if ! [ -d "$idir_cur" ]; then
+        echo "Warning: $idir_cur does not exist! Skipping ..."
+        continue
+    fi
+    
+    # do it
+    run_bloc
+done
+
+exit 2
