@@ -58,18 +58,18 @@ function run_bloc () {
     
     local START="$(date +%s)"
     
-    blocres -verbose 3 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd "$rmask_path" $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
+    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocres completed in ${DURATION} seconds"
 
     
     printf '%b\n' "Processing blocfilt for $idir_cur
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Resolution $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path"
+    blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution $locres_map_path $rmask_path $blocfilt_opt $orimap_path $locfil_map_path"
     
     local START="$(date +%s)"
     
-    blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" "$rmask_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
+    blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $rmask_path $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
@@ -83,8 +83,8 @@ flipmap="FALSE"
 jbs=(0)
 blocres_opt=""
 blocfilt_opt=""
-mask="null"
-nomask="FALSE"
+mask=""
+nomask=""
 N=1
 
 hlpmsg="Local Resolution Control Center - LRCC
@@ -167,6 +167,7 @@ while getopts ":hb:fj:mMn:o:p:r:x:y:" opt; do
       ;;
     n )
       N=$OPTARG
+	  ;;
     o )
       ori="$OPTARG"
       ;;
@@ -227,6 +228,8 @@ for j in $jbs; do
     ((i=i%N)); ((i++==0)) && wait
     run_bloc "$idir_cur" "$odir_cur" &
 done
+
+wait
 
 echo "Completed in $SECONDS seconds."
 exit 0
