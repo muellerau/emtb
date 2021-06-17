@@ -55,7 +55,7 @@ function run_bloc () {
 	
 	START="$(date +%s)"
     
-	blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" #&> "$locres_log"
+	blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" &> /dev/null #"$locres_log"
 	
 	DURATION=$[ $(date +%s) - ${START} ]
 	echo "blocres completed in ${DURATION} seconds"
@@ -65,7 +65,7 @@ function run_bloc () {
 	blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res $locres_map_path $blocfilt_opt $orimap_path $locfil_map_path"
 	
 	START="$(date +%s)"
-    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" #&> "$locfil_log"
+    blocfilt -verbose 1 -box $bxsz $smpl_cmd -Res "$locres_map_path" $blocfilt_opt "$orimap_path" "$locfil_map_path" &> /dev/null #"$locfil_log"
 	
 	DURATION=$[ $(date +%s) - ${START} ]
 	echo "blocfilt completed in ${DURATION} seconds"
