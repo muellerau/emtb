@@ -58,7 +58,7 @@ function run_bloc () {
     
     local START="$(date +%s)"
     
-    blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
+    $bin_blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocres completed in ${DURATION} seconds"
@@ -69,7 +69,7 @@ function run_bloc () {
     
     local START="$(date +%s)"
     
-    blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $rmask_path $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
+    $bin_blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $rmask_path $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
@@ -204,6 +204,15 @@ if [ -z "$idir" ]; then
 fi
 
 [ -z "$odir" ] && odir="."
+
+# blocres available?
+bin_blocres=$(which blocres)
+bin_blocfilt=$(which blocfilt)
+
+if [ -z $bin_blocres || -z $bin_blocfilt ]; then
+	echo "Error: Cannot find blocres/blocfilt binaries. Please make sure to have them installed and added to your PATH."
+	exit 1
+fi
 
 ### execution
 
