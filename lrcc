@@ -87,11 +87,17 @@ function run_bloc () {
 
     # flip output maps?
     if [ $flipmap = "TRUE" ]; then
-        maps2flip=($locres_map_path $locfil_map_path)
-        for mapfile in $maps2flip; do
-            mapfile_flip="$odir_cur/$(basename -s .mrc $mapfile)_flip.mrc"
-            chimerax --nogui --cmd "open $mapfile; vol flip #0; save $mapfile_flip models #1; exit"
-        done
+        # check if chimerax is available
+        bin_chimerax="$(which chimerax)"
+        if [ -z $bin_chimerax ]; then
+            echo "Error: Cannot find chimerax binary. Please make sure to have it installed and added to your PATH. Skipping map flipping ..."
+        else
+            maps2flip=($locres_map_path $locfil_map_path)
+            for mapfile in $maps2flip; do
+                mapfile_flip="$odir_cur/$(basename -s .mrc $mapfile)_flip.mrc"
+                chimerax --nogui --cmd "open $mapfile; volume flip #1; save $mapfile_flip models #2; exit"
+            done
+        fi
     fi
 }
 
