@@ -1,39 +1,64 @@
 #!/bin/bash
 
-# Local Resolution Control Center (LRCC)
-# Batch processor for blocres and bloc on cryoSPARC job output.
+# CryoSPARC Amplified Resources (CSAR)
+# Batch processor for cryoSPARC job outputs.
 # (c) Andreas U Mueller - 2021
 # --- no warranty, no liability; use at own risk ---
 #
-#####
-#
-# Version history:
-#
-# v1.0 - 20210701
-#  - initial release
-#
-#
-
-version="Local Resolution Control Center (LRCC) - v1.0"
 
 export LC_ALL=C # fix locale setting for consistent sort
 SECONDS=0
 
-function run_bloc () {
+function get_cs_files () {
+    idir_cur="$1"
+
+    # gather input files
+    mapA_files=($(find "$idir_cur" -name *map_half_A.mrc | sort -r))
+    mapB_files=($(find "$idir_cur" -name *map_half_B.mrc | sort -r))
+    mapU_files=($(find "$idir_cur" -name *map.mrc | sort -r))
+    mapS_files=($(find "$idir_cur" -name *map_sharp.mrc | sort -r))
+    rmask_files=($(find "$idir_cur" -name *mask_refine.mrc | sort -r))
+    
+    # build i/o variables
+    mapA=${mapA[0]}
+    mapB=${mapB[0]}
+    mapU=${mapU[0]}
+    mapS=${mapS[0]}
+    
+    # choose mask file
+    if [ -z "$nomask" ]; then
+        if [ -z "$mask" ]; then
+            ! [ -f "$rmask_files" ] && echo "Warning: $rmask does not exist!"
+            rmask="-Mask ${rmask[0]}"
+        else
+            ! [ -f "$mask" ] && echo "Warning: $rmask does not exist!"
+            rmask="-Mask $mask"
+        fi
+    else
+        rmask=""
+    fi
+
+    #check file existence
+    ! [ -f "$mapA_path" ] && echo "Warning: $mapA_path does not exist!"
+    ! [ -f "$mapB_path" ] && echo "Warning: $mapB_path does not exist!"
+    ! [ -f "$mapU_path" ] && echo "Warning: $mapU_path does not exist!"
+    ! [ -f "$mapS_path" ] && echo "Warning: $mapS_path does not exist!"
+}
+
+function run_cmd () {
     local idir_cur="$1"
     local odir_cur="$2"
 
     # gather input files
     local mapA=($(find "$idir_cur" -name *map_half_A.mrc | sort -r))
     local mapB=($(find "$idir_cur" -name *map_half_B.mrc | sort -r))
-    local umap=($(find "$idir_cur" -name *map.mrc | sort -r))
+    #umap=($(find "$idir_cur" -name *map.mrc | sort -r))
     local smap=($(find "$idir_cur" -name *map_sharp.mrc | sort -r))
     local rmask=($(find "$idir_cur" -name *mask_refine.mrc | sort -r))
     
     # build i/o variables
     local mapA_path=${mapA[0]}
     local mapB_path=${mapB[0]}
-    local umap_path=${umap[0]}
     local orimap_path=${smap[0]}
     
     # choose mask file
@@ -48,7 +73,7 @@ function run_bloc () {
     else
         local rmask_path=""
     fi
-    
+
     #check file existence
     ! [ -f "$mapA_path" ] && echo "Error: $mapA_path does not exist!"
     ! [ -f "$mapB_path" ] && echo "Error: $mapB_path does not exist!"
@@ -84,15 +109,6 @@ function run_bloc () {
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
-
-    # flip output maps?
-    if [ $flipmap = "TRUE" ]; then
-        maps2flip=($locres_map_path $locfil_map_path)
-        for mapfile in $maps2flip; do
-            mapfile_flip="$odir_cur/$(basename -s .mrc $mapfile)_flip.mrc"
-            chimerax --nogui --cmd "open $mapfile; vol flip #0; save $mapfile_flip models #1; exit"
-        done
-    fi
 }
 
 # default values
@@ -107,17 +123,16 @@ mask=""
 nomask=""
 N=1
 
-hlpmsg="$version
+hlpmsg="Local Resolution Control Center - LRCC
 
-Batch process cryoSPARC job output with local resolution and local
-filtering using blocres/blocfilt.
+Batch process cryoSPARC job output with local resolution and local filtering
+using blocres/blocfilt.
 
 (c) Andreas U Mueller - 2021
 
 Usage: lrcc [options] input_folder [output_folder]
 
-Point to one or more directories that each contain the half maps and a
-sharpened map.
+Point to a directory that contains half maps and sharpened maps.
 
 Map files are recognized by pattern matching
 half map A        *map_half_A.mrc
@@ -125,24 +140,21 @@ half map B        *map_half_B.mrc
 sharpened map     *map_sharp.mrc
 mask              *mask_refine.mrc
 
-This is the pattern employed by cryoSPARC, so LRCC can process
+This is the pattern employed by the cryoSPARC tools, so LRCC can process
 map files directly from cryoSPARC job directories.
 
-Positional arguments:
+Required arguments:
     input_folder
-    output_folder
 Optional arguments:
     -h                      Print this message.
 
     -b box_size             Choose kernel size for blocres/blocfilt
                              default: 20
-    
+
     -f                      Flip output maps (uses chimerax).
 
-    -j \"job1 job2 ...\"    Specify cryoSPARC jobs to process. If -j is
-                             not used, LRCC will search the input
-                             directory for maps and no batch processing
-                             will be performed.
+    -j \"job1 job2 ...\"    Specify cryoSPARC jobs to process. If -j is not used,
+                             LRCC will search the input directory for maps.
 
     -m mask.mrc             Provide a custom mask for blocres/blocfilt.
                              default: *mask_refine.mrc
@@ -153,21 +165,20 @@ Optional arguments:
                              default: 1
 
     -o x,y,z                Set origin coordinates.
-                             default: 0,0,0 ()
+                             default: 0,0,0
 
-    -s sampling             Set bloc sampling. Generally, use the map
-                             pixel size (A/px).
+    -p pixel_size           Set pixel size (A/px).
 
     -r resolution           Set maximum resolution in data (in Angstrom).
                              Generally, twice the pixel size.
 
     -x \"-arg1 -arg2 ...\"  Pass additional arguments to blocres.
 
-    -y \"-arg1 -arg2 ...\"  Pass additional arguments to blocfilt.
+    -y \"-arg1 -arg2 ...\"    Pass additional arguments to blocfilt.
 "
 
 # parse arguments
-while getopts ":hb:fj:mMn:o:s:r:x:y:" opt; do
+while getopts ":hb:fj:mMn:o:p:r:x:y:" opt; do
   case ${opt} in
     h )
       printf '%b\n' "$hlpmsg"
@@ -177,7 +188,9 @@ while getopts ":hb:fj:mMn:o:s:r:x:y:" opt; do
       bxsz=$OPTARG
       ;;
     f )
-      flipmap="TRUE"
+      flipmap="TRUE" # not implemented yet
+      echo "sorry, not implemented yet."
+      exit 2
       ;;
     j )
       jbs=("$OPTARG")
@@ -194,7 +207,7 @@ while getopts ":hb:fj:mMn:o:s:r:x:y:" opt; do
     o )
       ori="$OPTARG"
       ;;
-    s )
+    p )
       smpl_cmd="-sampling $OPTARG"
       ;;
     r )
@@ -228,11 +241,11 @@ fi
 
 [ -z "$odir" ] && odir="."
 
-# blocres available?
-bin_blocres="$(which blocres)"
-bin_blocfilt="$(which blocfilt)"
+# command available?
+bin_ucmd=$(which $ucmd)
+bin_ucmd=$(which $ucmd)
 
-if [ -z "$bin_blocres" ] || [ -z "$bin_blocfilt" ]; then
+if [ -z $bin_blocres || -z $bin_blocfilt ]; then
 	echo "Error: Cannot find blocres/blocfilt binaries. Please make sure to have them installed and added to your PATH."
 	exit 1
 fi
@@ -242,7 +255,7 @@ fi
 # iterate over jobs and process
 for j in $jbs; do
     # are jobs used?
-    if [ $j = 0 ]; then
+    if [ j = 0 ]; then
         idir_cur="$idir"
         odir_cur="$odir"
     else
@@ -256,9 +269,9 @@ for j in $jbs; do
         continue
     fi
 
-    # do it
+    # do it in parallel
     ((i=i%N)); ((i++==0)) && wait
-    run_bloc "$idir_cur" "$odir_cur" &
+    run_ucmd "$idir_cur" "$odir_cur" &
 done
 
 wait
