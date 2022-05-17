@@ -1,0 +1,239 @@
+#!/bin/bash
+
+# shoeshine
+# Prepare a cryoSPARC job for Bayesian polishing in Relion.
+# (c) Andreas U Mueller - 2022
+# --- no warranty, no liability; use at own risk ---
+#
+#####
+#
+# Version history:
+#
+# v1.0 - 20220515
+#  - initial
+#
+#
+
+version="shoeshine - v1.0"
+
+export LC_ALL=C # fix locale setting for consistent sort
+SECONDS=0
+
+# abort on error
+set -e
+
+
+function mrcs_rename (){
+    # does to folder and renames mrc to mrcs files
+    curr_dir=$(pwd)
+    cd "$1"
+    for f in *.mrc; do mv -- "$f" "${f%.mrc}.mrcs"; done
+    cd "$curr_dir"
+}
+
+
+# default values
+rel_rename="TRUE"
+still="FALSE"
+overwrite="FALSE"
+
+hlpmsg="$version
+
+Prepare a cryoSPARC job for Bayesian polishing in Relion.
+(c) Andreas U Mueller - 2022
+
+Requirements: pyem >= 20220427
+
+Usage: shoeshine [options] cs_refinement_job_folder cs_extract_job_folder relion_projectfolder
+
+Relative paths will be converted to absolute.
+
+Positional arguments:
+    cs_refinement_job_folder
+    cs_extract_job_folder
+    relion_projectfolder
+Optional arguments:
+    -h            Print this message.
+    -f            Overwrite exisiting folders and files.
+    -M            Skip detection of Relion MotionCorr job.
+                   (also skips path correction in output STAR file)
+    -R            Do no rename half map links to Relion convention.
+    -x \"--arg1 --arg2 ...\"  Arguments for csparc2star.py
+"
+
+# parse arguments
+while getopts ":hfMRx:" opt; do
+  case ${opt} in
+    h )
+      printf '%b\n' "$hlpmsg"
+      exit 0
+      ;;
+    f )
+      overwrite="TRUE"
+      ;;
+    M )
+      still="TRUE"
+      ;;
+    R )
+      # do not rename half map links to relion naming
+      rel_rename="FALSE"
+      ;;
+    x )
+      csparc2star_opt="$OPTARG"
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+# csparc2star/pyem version available?
+bin_csparc2star="$(which csparc2star.py)"
+
+if [ -z "$bin_csparc2star" ]; then
+	echo "Error: Cannot find csparc2star.py script. Please make sure to have pyem installed and added to your PATH."
+	exit 1
+fi
+
+# parse positional arguments
+csrdir="$1"
+csxdir="$2"
+reldir="$3"
+
+# check if proper folders
+echo "Checking paths..."
+for d in "$csrdir" "$csxdir" "$reldir"; do
+    echo "$d"
+	if [ -z "$d" ] || ! [ -d "$d" ]; then
+        echo "Error: Input folder not recognized."
+        exit 1
+    fi
+done
+
+# convert to absolute paths
+csrdir="$(realpath $csrdir)"
+csxdir="$(realpath $csxdir)"
+reldir="$(realpath $reldir)"
+
+# double-check if correct folder
+rdir_pcs=($(find "$csrdir" -name *particles.cs | sort -r))
+if [ -z ${rdir_pcs[0]} ]; then
+    echo "Error: Cannot find particles in cryoSPARC refinement job folder."
+    printf '%b\n' "$hlpmsg"
+    exit 1
+fi
+
+xdir_pcs=($(find "$csxdir" -name extracted_particles.cs | sort -r))
+if [ -z ${xdir_pcs[0]} ]; then
+    echo "Error: Cannot find extracted particles in cryoSPARC extract job folder."
+    printf '%b\n' "$hlpmsg"
+    exit 1
+fi
+
+### execution
+# create cryoSPARC scaffolds in relion folder
+# extract job
+csxjob=$(basename "$csxdir")
+rel_xdir="$reldir/$csxjob/extract"
+
+if ! [ -d "$rel_xdir" ]; then
+    mkdir -p "$rel_xdir"
+    ln -s "$csxdir/extract/"*.mrc -t "$rel_xdir/."
+    mrcs_rename "$rel_xdir"
+else
+    echo "Extract job link folder $rel_xdir exists already."
+	if [ $overwrite = TRUE ]; then
+	    echo "Overwriting..."
+	    ln -sf "$csxdir/extract/"*.mrc -t "$rel_xdir/."
+		mrcs_rename "$rel_xdir"
+    else
+        echo "Skipping..."
+    fi
+fi
+
+# refinement job
+csrjob=$(basename "$csrdir")
+rel_rdir="$reldir/$csrjob"
+if ! [ -d "$rel_rdir" ]; then
+    mkdir -p "$rel_rdir"
+    ln -s "$csrdir/"* -t "$rel_rdir/."
+else
+    echo "Refinement job link folder $rel_rdir exists already."
+	if [ $overwrite = TRUE ]; then
+	    echo "Overwriting..."
+        ln -sf "$csrdir/"* -t "$rel_rdir/."
+    else
+        echo "Skipping..."
+    fi
+fi
+
+# rename half map links to match Relion convention
+if [ $rel_rename = TRUE ]; then
+    mapA_files=($(find "$rel_rdir" -name cryosparc_*_half_A.mrc | sort -r))
+    mapA=${mapA_files[0]}
+    mapB_files=($(find "$rel_rdir" -name cryosparc_*_half_B.mrc | sort -r))
+    mapB=${mapB_files[0]}
+	echo "Renaming $mapA to ${mapA%_half_A.mrc}_half1_x_unfil.mrc"
+    ! [ -z "$mapA" ] && mv -- "$mapA" "${mapA%_half_A.mrc}_half1_x_unfil.mrc"
+    echo "Renaming $mapB to ${mapB%_half_B.mrc}_half2_x_unfil.mrc"
+    ! [ -z "$mapB" ] && mv -- "$mapB" "${mapB%_half_B.mrc}_half2_x_unfil.mrc"
+fi
+
+# locate MotionCorr job in Relion
+# currently formulates MotionCorr job paths as relative; absolute version in comments
+if [ -d "$reldir/MotionCorr" ]; then
+    mcjob_folders=($(find "$reldir/MotionCorr" -name job* -exec basename {} \;))
+	#mcjob_folders=($(find "$reldir/MotionCorr" -name job*))
+	if [ ${#mcjob_folders[@]} -gt 1 ]; then
+	    select mcjob in ${mcjob_folders[@]}; do
+	       mcjob_path="MotionCorr/$mcjob"
+		   #mcjob_path="$mcjob"
+		   break
+	    done
+	elif [ ${#mcjob_folders[@]} -eq 1 ]; then
+	    mcjob_path="MotionCorr/${mcjob[0]}"
+		#mcjob_path="${mcjob[0]}"
+	else
+	    echo "Warning: Could not locate MotionCorr jobs in $reldir/MotionCorr"
+		echo "Make sure the paths are correct and a MotionCorr job exists."
+		echo "Script will continue, but MotionCorr path in STAR file will not be adjusted."
+		still="TRUE"
+	fi
+else
+    echo "Warning: Folder $reldir/MotionCorr does not exist."
+	echo "Note: Bayesian polishing in Relion requires MotionCorr data from Relion to run."
+	still="TRUE"
+fi
+
+# gather cs files
+rel_rdir_pcs_files=($(find "$rel_rdir" -name cryosparc_*_particles.cs | sort -r))
+rel_rdir_pcs=${rel_rdir_pcs_files[0]}
+rel_rdir_ptpcs_files=($(find "$rel_rdir" -name *passthrough_particles.cs | sort -r))
+rel_rdir_ptpcs=${rel_rdir_ptpcs_files[0]}
+
+# convert to STAR file
+finalstar="$rel_rdir/${csrjob}_particles_from_csparc.star"
+if ! [ -f "$finalstar" ] || [ $overwrite = TRUE ]; then
+	if [ $still = TRUE ]; then
+        echo "Executing cs to star file conversion with the following command:"
+        echo "csparc2star.py $csparc2star_opt $rel_rdir_pcs $rel_rdir_ptpcs $finalstar"
+        csparc2star.py $csparc2star_opt "$rel_rdir_pcs" "$rel_rdir_ptpcs" "$finalstar"
+	else
+        echo "Executing cs to star file conversion with the following command:"
+        echo "csparc2star.py $csparc2star_opt --micrograph-path $mcjob_path $rel_rdir_pcs $rel_rdir_ptpcs $finalstar"
+        csparc2star.py $csparc2star_opt --micrograph-path "$mcjob_path" "$rel_rdir_pcs" "$rel_rdir_ptpcs" "$finalstar"
+	fi
+else
+    echo "$finalstar exists already. Pass -f to force overwrite."
+fi
+
+wait
+
+echo "Completed in $SECONDS seconds."
+exit 0
+
+exit 2
