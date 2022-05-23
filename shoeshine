@@ -231,6 +231,9 @@ else
     echo "$finalstar exists already. Pass -f to force overwrite."
 fi
 
+# change mrc to mrcs in STAR file
+
+
 wait
 
 echo "Completed in $SECONDS seconds."
