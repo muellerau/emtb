@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Local Resolution Control Center (LRCC)
-# Batch processor for blocres and bloc on cryoSPARC job output.
+# Batch processor for blocres and blocfilt of cryoSPARC job output.
 # (c) Andreas U Mueller - 2021
 # --- no warranty, no liability; use at own risk ---
 #
@@ -9,12 +9,15 @@
 #
 # Version history:
 #
+# v1.1 - 20220524
+#  - minor code corrections
+#
 # v1.0 - 20210701
 #  - initial release
 #
 #
 
-version="Local Resolution Control Center (LRCC) - v1.0"
+version="Local Resolution Control Center (LRCC) - v1.1"
 
 export LC_ALL=C # fix locale setting for consistent sort
 SECONDS=0
@@ -69,7 +72,7 @@ function run_bloc () {
     
     local START="$(date +%s)"
     
-    $bin_blocres -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
+    "$bin_blocres" -verbose 1 -box $bxsz -origin $ori $smpl_cmd $maxres_cmd $rmask_path $blocres_opt "$mapA_path" "$mapB_path" "$locres_map_path" 2> /dev/null 1> "$locres_log"
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocres completed in ${DURATION} seconds"
@@ -80,7 +83,7 @@ function run_bloc () {
     
     local START="$(date +%s)"
     
-    $bin_blocfilt -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $rmask_path $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
+    "$bin_blocfilt" -verbose 3 -box $bxsz $smpl_cmd -Resolution "$locres_map_path" $rmask_path $blocfilt_opt "$orimap_path" "$locfil_map_path" 2> /dev/null 1> "$locfil_log"
     
     local DURATION=$[ $(date +%s) - ${START} ]
     echo "blocfilt completed in ${DURATION} seconds"
@@ -89,7 +92,7 @@ function run_bloc () {
     if [ $flipmap = "TRUE" ]; then
         # check if chimerax is available
         bin_chimerax="$(which chimerax)"
-        if [ -z $bin_chimerax ]; then
+        if [ -z "$bin_chimerax" ]; then
             echo "Error: Cannot find chimerax binary. Please make sure to have it installed and added to your PATH. Skipping map flipping ..."
         else
             maps2flip=($locres_map_path $locfil_map_path)
@@ -234,7 +237,7 @@ fi
 
 [ -z "$odir" ] && odir="."
 
-# blocres available?
+# blocres/blocfilt available?
 bin_blocres="$(which blocres)"
 bin_blocfilt="$(which blocfilt)"
 

@@ -36,6 +36,7 @@ function mrcs_rename (){
 rel_rename="TRUE"
 still="FALSE"
 overwrite="FALSE"
+keeporistar="FALSE"
 
 hlpmsg="$version
 
@@ -55,6 +56,7 @@ Positional arguments:
 Optional arguments:
     -h            Print this message.
     -f            Overwrite exisiting folders and files.
+    -k            Keep a copy of unmodified STAR file (*.star.ori).
     -M            Skip detection of Relion MotionCorr job.
                    (also skips path correction in output STAR file)
     -R            Do no rename half map links to Relion convention.
@@ -62,7 +64,7 @@ Optional arguments:
 "
 
 # parse arguments
-while getopts ":hfMRx:" opt; do
+while getopts ":hfkMRx:" opt; do
   case ${opt} in
     h )
       printf '%b\n' "$hlpmsg"
@@ -70,6 +72,9 @@ while getopts ":hfMRx:" opt; do
       ;;
     f )
       overwrite="TRUE"
+      ;;
+    k )
+      keeporistar="TRUE"
       ;;
     M )
       still="TRUE"
@@ -232,7 +237,13 @@ else
 fi
 
 # change mrc to mrcs in STAR file
+if [ $keeporistar = "TRUE" ]; then
+    cp "$finalstar" "${finalstar}.ori"
+fi
+sed -i "s/_particles.mrc/_particles.mrcs/g" "$finalstar"
 
+# inform user
+echo "Converted cryoSPARC $csrjob to STAR file $finalstar."
 
 wait
 
