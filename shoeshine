@@ -9,12 +9,12 @@
 #
 # Version history:
 #
-# v1.0 - 20220515
+# v0.1 - 20220515
 #  - initial
 #
 #
 
-version="shoeshine - v1.0"
+version="shoeshine - v0.1"
 
 export LC_ALL=C # fix locale setting for consistent sort
 SECONDS=0
@@ -45,21 +45,21 @@ Prepare a cryoSPARC job for Bayesian polishing in Relion.
 
 Requirements: pyem >= 20220427
 
-Usage: shoeshine [options] cs_refinement_job_folder cs_extract_job_folder relion_projectfolder
+Usage: shoeshine [options] cs_extract_job_folder cs_refinement_job_folder relion_project_folder
 
 Relative paths will be converted to absolute.
 
-Positional arguments:
-    cs_refinement_job_folder
-    cs_extract_job_folder
-    relion_projectfolder
+Required arguments:
+    cs_extract_job_folder        e.g. P2/J5
+    cs_refinement_job_folder     e.g. P2/J17
+    relion_project_folder
 Optional arguments:
     -h            Print this message.
     -f            Overwrite exisiting folders and files.
     -k            Keep a copy of unmodified STAR file (*.star.ori).
     -M            Skip detection of Relion MotionCorr job.
                    (also skips path correction in output STAR file)
-    -R            Do no rename half map links to Relion convention.
+    -R            Do not rename half map links to Relion convention.
     -x \"--arg1 --arg2 ...\"  Arguments for csparc2star.py
 "
 
@@ -105,13 +105,13 @@ if [ -z "$bin_csparc2star" ]; then
 fi
 
 # parse positional arguments
-csrdir="$1"
-csxdir="$2"
+ptcdir="$1"
+csrdir="$2"
 reldir="$3"
 
 # check if proper folders
 echo "Checking paths..."
-for d in "$csrdir" "$csxdir" "$reldir"; do
+for d in "$csrdir" "$ptcdir" "$reldir"; do
     echo "$d"
 	if [ -z "$d" ] || ! [ -d "$d" ]; then
         echo "Error: Input folder not recognized."
@@ -120,11 +120,11 @@ for d in "$csrdir" "$csxdir" "$reldir"; do
 done
 
 # convert to absolute paths
+ptcdir="$(realpath $ptcdir)"
 csrdir="$(realpath $csrdir)"
-csxdir="$(realpath $csxdir)"
 reldir="$(realpath $reldir)"
 
-# double-check if correct folder
+# double-check if refinement folder contains particle data
 rdir_pcs=($(find "$csrdir" -name *particles.cs | sort -r))
 if [ -z ${rdir_pcs[0]} ]; then
     echo "Error: Cannot find particles in cryoSPARC refinement job folder."
@@ -132,28 +132,30 @@ if [ -z ${rdir_pcs[0]} ]; then
     exit 1
 fi
 
-xdir_pcs=($(find "$csxdir" -name extracted_particles.cs | sort -r))
+# double-check if proper extract job
+xdir_pcs=($(find "$ptcdir" -name extracted_particles.cs | sort -r))
 if [ -z ${xdir_pcs[0]} ]; then
-    echo "Error: Cannot find extracted particles in cryoSPARC extract job folder."
+    echo "Error: Cannot identify cryoSPARC extract job folder."
     printf '%b\n' "$hlpmsg"
     exit 1
 fi
 
+
 ### execution
 # create cryoSPARC scaffolds in relion folder
 # extract job
-csxjob=$(basename "$csxdir")
+csxjob=$(basename "$ptcdir")
 rel_xdir="$reldir/$csxjob/extract"
 
 if ! [ -d "$rel_xdir" ]; then
     mkdir -p "$rel_xdir"
-    ln -s "$csxdir/extract/"*.mrc -t "$rel_xdir/."
+    ln -s "$ptcdir/extract/"*.mrc -t "$rel_xdir/."
     mrcs_rename "$rel_xdir"
 else
     echo "Extract job link folder $rel_xdir exists already."
 	if [ $overwrite = TRUE ]; then
 	    echo "Overwriting..."
-	    ln -sf "$csxdir/extract/"*.mrc -t "$rel_xdir/."
+	    ln -sf "$ptcdir/extract/"*.mrc -t "$rel_xdir/."
 		mrcs_rename "$rel_xdir"
     else
         echo "Skipping..."
@@ -176,24 +178,14 @@ else
     fi
 fi
 
-# rename half map links to match Relion convention
-if [ $rel_rename = TRUE ]; then
-    mapA_files=($(find "$rel_rdir" -name cryosparc_*_half_A.mrc | sort -r))
-    mapA=${mapA_files[0]}
-    mapB_files=($(find "$rel_rdir" -name cryosparc_*_half_B.mrc | sort -r))
-    mapB=${mapB_files[0]}
-	echo "Renaming $mapA to ${mapA%_half_A.mrc}_half1_x_unfil.mrc"
-    ! [ -z "$mapA" ] && mv -- "$mapA" "${mapA%_half_A.mrc}_half1_x_unfil.mrc"
-    echo "Renaming $mapB to ${mapB%_half_B.mrc}_half2_x_unfil.mrc"
-    ! [ -z "$mapB" ] && mv -- "$mapB" "${mapB%_half_B.mrc}_half2_x_unfil.mrc"
-fi
-
 # locate MotionCorr job in Relion
 # currently formulates MotionCorr job paths as relative; absolute version in comments
+mcjob_path=""
 if [ -d "$reldir/MotionCorr" ]; then
     mcjob_folders=($(find "$reldir/MotionCorr" -name job* -exec basename {} \;))
 	#mcjob_folders=($(find "$reldir/MotionCorr" -name job*))
 	if [ ${#mcjob_folders[@]} -gt 1 ]; then
+        echo "Found multiple MotionCorr jobs. Please select:"
 	    select mcjob in ${mcjob_folders[@]}; do
 	       mcjob_path="MotionCorr/$mcjob"
 		   #mcjob_path="$mcjob"
@@ -212,6 +204,36 @@ else
     echo "Warning: Folder $reldir/MotionCorr does not exist."
 	echo "Note: Bayesian polishing in Relion requires MotionCorr data from Relion to run."
 	still="TRUE"
+fi
+
+# add image subfolder to MotionCorr directory
+if ! [ -z mcjob_path ]; then
+    mc_imdir=($(find "$reldir/$mcjob_path" -mindepth 1 -type d))
+    if [ ${#mc_imdir[@]} -gt 1 ]; then
+        echo "Found multiple folders in MotionCorr job path that may contain images. Please select:"
+	    select mc_imfolder in ${mc_imdir[@]}; do
+	       mcjob_path="$(echo $mc_imfolder | sed 's/.*\(MotionCorr\)/\1/g')/"
+		   break
+	    done
+	elif [ ${#mc_imdir[@]} -eq 1 ]; then
+	    mcjob_path="$(echo ${mc_imdir[0]} | sed 's/.*\(MotionCorr\)/\1/g')/"
+	else
+	    echo "Warning: Could not locate MotionCorr images in $reldir/$mcjob_path"
+		echo "Script will continue, but MotionCorr path in STAR file will not be adjusted."
+		still="TRUE"
+	fi
+fi
+
+# rename half map links to match Relion convention
+if [ $rel_rename = TRUE ]; then
+    mapA_files=($(find "$rel_rdir" -name cryosparc_*_half_A.mrc | sort -r))
+    mapA=${mapA_files[0]}
+    mapB_files=($(find "$rel_rdir" -name cryosparc_*_half_B.mrc | sort -r))
+    mapB=${mapB_files[0]}
+	echo "Renaming $mapA to ${mapA%_half_A.mrc}_half1_x_unfil.mrc"
+    ! [ -z "$mapA" ] && mv -- "$mapA" "${mapA%_half_A.mrc}_half1_x_unfil.mrc"
+    echo "Renaming $mapB to ${mapB%_half_B.mrc}_half2_x_unfil.mrc"
+    ! [ -z "$mapB" ] && mv -- "$mapB" "${mapB%_half_B.mrc}_half2_x_unfil.mrc"
 fi
 
 # gather cs files
@@ -251,3 +273,37 @@ echo "Completed in $SECONDS seconds."
 exit 0
 
 exit 2
+
+
+
+#### future code
+
+# identify particle folder type
+#pdir_csd=($(find "$ptcdir" -name extracted_particles.cs | sort -r))
+#pdir_csx=($(find "$ptcdir" -name *.mrc | sort -r))
+#pdir_rel=($(find "$ptcdir" -name *.mrcs | sort -r))
+#pdir_type=""
+#if ! [ -z ${pdir_csd[0]} ]; then
+#    echo "$ptcdir contains extracted_particles.cs -> assuming cryoSPARC extract job..."
+#	pdir_type="CS"
+#elif ! [ -z ${pdir_csx[0]} ] && [ $(basename "$ptcdir") = "extract" ]; then
+#    echo "$ptcdir contains *.mrc files and path ends with \"extract\". Assuming cryoSPARC extract job..."
+#	pdir_type="CS"
+#elif ! [ -z ${pdir_rel[0]} ] && ! [ $(basename "$ptcdir") = "extract" ]; then
+#    echo "$ptcdir contains *.mrcs files. Assuming Relion particles..."
+#	pdir_type="RL"
+#else
+#    echo "Error: Cannot identify particle type folder. Check input paths."
+#    exit 1
+#fi
+#case $pdir_type in
+#    CS)
+#	  echo
+#	;;
+#	RL)
+#	  echo
+#	;;
+#	*)
+#	  echo
+#	;;
+#esac
