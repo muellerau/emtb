@@ -1,0 +1,11 @@
+#!/bin/bash
+
+## wrapper to change cryoSPARC project directories
+## (c) 2022 - Andreas U. Mueller; use at your own risk
+
+prj="$1"
+newdir=$(realpath "$2")
+
+cryosparcm cli "update_project_directory($prj, $newdir)"
+
+exit 0
