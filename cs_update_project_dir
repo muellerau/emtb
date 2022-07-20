@@ -4,8 +4,21 @@
 ## (c) 2022 - Andreas U. Mueller; use at your own risk
 
 prj="$1"
+
+if [ -z "$prj" ]; then
+    echo "No project given.
+	Usage: cs_update_project_dir PROJECT_ID NEW_PROJECT_DIRECTORY"
+	exit 1
+fi
+
 newdir=$(realpath "$2")
 
-cryosparcm cli "update_project_directory($prj, $newdir)"
+if [ -z "$newdir" ]; then
+    echo "No target directory given.
+	Usage: cs_update_project_dir PROJECT_ID NEW_PROJECT_DIRECTORY"
+	exit 1
+fi
+
+cryosparcm cli "update_project_directory('$prj', '$newdir')"
 
 exit 0
