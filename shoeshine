@@ -9,12 +9,16 @@
 #
 # Version history:
 #
+# v0.2 - 20220802
+#  - restricted MotionCorr job find to top level folder
+#  - CS refinement job links for last iteration only
+#
 # v0.1 - 20220515
 #  - initial
 #
 #
 
-version="shoeshine - v0.1"
+version="shoeshine - v0.2"
 
 export LC_ALL=C # fix locale setting for consistent sort
 SECONDS=0
@@ -24,7 +28,7 @@ set -e
 
 
 function mrcs_rename (){
-    # does to folder and renames mrc to mrcs files
+    # change to folder and renames mrc to mrcs files
     curr_dir=$(pwd)
     cd "$1"
     for f in *.mrc; do mv -- "$f" "${f%.mrc}.mrcs"; done
@@ -162,17 +166,28 @@ else
     fi
 fi
 
-# refinement job
+# CS refinement job
 csrjob=$(basename "$csrdir")
 rel_rdir="$reldir/$csrjob"
+
+# determine max iteration of CS job
+csr_max_iter=($(find "$csrdir/" -name cryosparc_*_volume_map.mrc | sort -r))
+IFS='_' read -ra csr_max_iter_split <<< "$(basename ${csr_max_iter[0]})"
+
 if ! [ -d "$rel_rdir" ]; then
     mkdir -p "$rel_rdir"
-    ln -s "$csrdir/"* -t "$rel_rdir/."
+    # make symbolic links
+    #ln -s "$csrdir/"* -t "$rel_rdir/."; # symbolic links to everything; legacy
+	ln -s $(find "$csrdir/" -name cryosparc_${csr_max_iter_split[3]}_*) -t "$rel_rdir/."
+	ln -s $(find "$csrdir/" -name P*) -t "$rel_rdir/."
 else
     echo "Refinement job link folder $rel_rdir exists already."
 	if [ $overwrite = TRUE ]; then
 	    echo "Overwriting..."
-        ln -sf "$csrdir/"* -t "$rel_rdir/."
+        #ln -sf "$csrdir/"* -t "$rel_rdir/."
+        ln -sf $(find "$csrdir/" -name cryosparc_${csr_max_iter_split[3]}_*) -t "$rel_rdir/."
+        ln -sf $(find "$csrdir/" -name P*) -t "$rel_rdir/."
+
     else
         echo "Skipping..."
     fi
@@ -182,7 +197,7 @@ fi
 # currently formulates MotionCorr job paths as relative; absolute version in comments
 mcjob_path=""
 if [ -d "$reldir/MotionCorr" ]; then
-    mcjob_folders=($(find "$reldir/MotionCorr" -name job* -exec basename {} \;))
+    mcjob_folders=($(find "$reldir/MotionCorr" -maxdepth 1 -name job* -exec basename {} \;))
 	#mcjob_folders=($(find "$reldir/MotionCorr" -name job*))
 	if [ ${#mcjob_folders[@]} -gt 1 ]; then
         echo "Found multiple MotionCorr jobs. Please select:"
