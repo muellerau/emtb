@@ -128,7 +128,7 @@ ptcdir="$(realpath $ptcdir)"
 csrdir="$(realpath $csrdir)"
 reldir="$(realpath $reldir)"
 
-# double-check if refinement folder contains particle data
+# check if refinement folder contains particle data
 rdir_pcs=($(find "$csrdir" -name *particles.cs | sort -r))
 if [ -z ${rdir_pcs[0]} ]; then
     echo "Error: Cannot find particles in cryoSPARC refinement job folder."
@@ -136,7 +136,7 @@ if [ -z ${rdir_pcs[0]} ]; then
     exit 1
 fi
 
-# double-check if proper extract job
+# check if proper extract job
 xdir_pcs=($(find "$ptcdir" -name extracted_particles.cs | sort -r))
 if [ -z ${xdir_pcs[0]} ]; then
     echo "Error: Cannot identify cryoSPARC extract job folder."
@@ -178,15 +178,15 @@ if ! [ -d "$rel_rdir" ]; then
     mkdir -p "$rel_rdir"
     # make symbolic links
     #ln -s "$csrdir/"* -t "$rel_rdir/."; # symbolic links to everything; legacy
-	ln -s $(find "$csrdir/" -name cryosparc_${csr_max_iter_split[3]}_*) -t "$rel_rdir/."
-	ln -s $(find "$csrdir/" -name P*) -t "$rel_rdir/."
+	ln -s $(find "$csrdir/" -name cryosparc_P*_J*_${csr_max_iter_split[3]}_*) -t "$rel_rdir/."
+	ln -s $(find "$csrdir/" -name P*_J*_*) -t "$rel_rdir/."
 else
     echo "Refinement job link folder $rel_rdir exists already."
 	if [ $overwrite = TRUE ]; then
 	    echo "Overwriting..."
         #ln -sf "$csrdir/"* -t "$rel_rdir/."
-        ln -sf $(find "$csrdir/" -name cryosparc_${csr_max_iter_split[3]}_*) -t "$rel_rdir/."
-        ln -sf $(find "$csrdir/" -name P*) -t "$rel_rdir/."
+        ln -sf $(find "$csrdir/" -name cryosparc_P*_J*_${csr_max_iter_split[3]}_*) -t "$rel_rdir/."
+        ln -sf $(find "$csrdir/" -name P*_J*_*) -t "$rel_rdir/."
 
     else
         echo "Skipping..."
@@ -197,18 +197,16 @@ fi
 # currently formulates MotionCorr job paths as relative; absolute version in comments
 mcjob_path=""
 if [ -d "$reldir/MotionCorr" ]; then
-    mcjob_folders=($(find "$reldir/MotionCorr" -maxdepth 1 -name job* -exec basename {} \;))
-	#mcjob_folders=($(find "$reldir/MotionCorr" -name job*))
+    mcjob_folders=($(find "$reldir/MotionCorr" -maxdepth 1 -name job* -exec basename {} + ))
 	if [ ${#mcjob_folders[@]} -gt 1 ]; then
         echo "Found multiple MotionCorr jobs. Please select:"
 	    select mcjob in ${mcjob_folders[@]}; do
 	       mcjob_path="MotionCorr/$mcjob"
-		   #mcjob_path="$mcjob"
 		   break
 	    done
 	elif [ ${#mcjob_folders[@]} -eq 1 ]; then
-	    mcjob_path="MotionCorr/${mcjob[0]}"
-		#mcjob_path="${mcjob[0]}"
+	    echo "Found a single MotionCorr job: ${mcjob_folders[0]}"
+		mcjob_path="MotionCorr/${mcjob_folders[0]}"
 	else
 	    echo "Warning: Could not locate MotionCorr jobs in $reldir/MotionCorr"
 		echo "Make sure the paths are correct and a MotionCorr job exists."
@@ -223,7 +221,7 @@ fi
 
 # add image subfolder to MotionCorr directory
 if ! [ -z mcjob_path ]; then
-    mc_imdir=($(find "$reldir/$mcjob_path" -mindepth 1 -type d))
+    mc_imdir=($(find "$reldir/$mcjob_path" -mindepth 1 -maxdepth 1 -type d))
     if [ ${#mc_imdir[@]} -gt 1 ]; then
         echo "Found multiple folders in MotionCorr job path that may contain images. Please select:"
 	    select mc_imfolder in ${mc_imdir[@]}; do
@@ -232,6 +230,7 @@ if ! [ -z mcjob_path ]; then
 	    done
 	elif [ ${#mc_imdir[@]} -eq 1 ]; then
 	    mcjob_path="$(echo ${mc_imdir[0]} | sed 's/.*\(MotionCorr\)/\1/g')/"
+        echo "Found a single image folder in MotionCorr job path: $mcjob_path"
 	else
 	    echo "Warning: Could not locate MotionCorr images in $reldir/$mcjob_path"
 		echo "Script will continue, but MotionCorr path in STAR file will not be adjusted."
@@ -280,7 +279,8 @@ fi
 sed -i "s/_particles.mrc/_particles.mrcs/g" "$finalstar"
 
 # inform user
-echo "Converted cryoSPARC $csrjob to STAR file $finalstar."
+echo "Converted cryoSPARC $csrjob to STAR file:"
+echo "$finalstar"
 
 wait
 
