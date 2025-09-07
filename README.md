@@ -1,6 +1,5 @@
 # emtb
-## (cryo)EM toolbox
-Level 5 - scripts, programs, superweapons
+### (cryo)EM toolbox
 
 A variety of helper scripts and useful programs to accelerate cryoEM data processing.
 
@@ -65,6 +64,16 @@ written by Andreas U Mueller - 2022
 ```
 Usage: 3dfsc_cs.bash path/to/csproject/JXXX/ pixel_size
 ```
+
+## 3dfsc_histplot.py
+
+Customized graph plotting from output of the 3DFSC program (https://github.com/nysbc/Anisotropy)
+
+Tan, Y., Baldwin, P., Davis, J. et al. Addressing preferred specimen orientation in single-particle cryo-EM through tilting. Nat Methods 14, 793–796 (2017). https://doi.org/10.1038/nmeth.4347
+
+written by Andreas U Mueller - 2025
+
+Dependencies: numpy, matplotlib
 
 ## pdb_analyze-bfactors.py
 
