@@ -1,0 +1,181 @@
+#!/bin/bash
+
+############################################################
+#
+# Generate micrograph thumbnails using relion_image_handler
+# 
+# Author: Andreas U. Mueller, 2025
+#
+# Use at own risk.
+#
+############################################################
+
+
+
+export LC_ALL=C # fix locale setting for consistency
+SECONDS=0
+
+set -e
+
+version="Micropgrah Thumbnail Generator (micronail) - v0.3"
+
+# default values
+nimg=5
+lowpass=0
+sigc=5
+scale=4
+
+
+hlpmsg="$version
+
+Generate png thumbnails from random micrographs.
+Uses relion_image_handler.
+
+(c) Andreas U Mueller - 2025
+
+Usage: micronail [options] input_folder [output_folder]
+
+Positional arguments:
+    input_folder            micrograph directory (typically motion-corrected)
+    output_folder           where to place thumbnails
+Optional arguments:
+    -h                      Print this message.
+    
+    -n number               number of images to generate
+                              default: 5
+    
+    -l lowpass              lowpass filter in A
+                              default: none
+    
+    -c contrast             set sigma contrast
+                              default: 5
+    
+    -p pixsize              pixel size in A/px;
+                            required for scaling;
+                            omit to skip scaling
+    
+    -s scaling_factor       scale factor for thumbnails;
+                            requires pixel size to be set;
+                            use zero or negative value to skip
+                              default: 4
+    
+    -x \"-arg1 -arg2 ...\"  Pass additional arguments to relion_image_handler.
+"
+
+# parse arguments
+while getopts ":hn:l:c:p:s:x:" opt; do
+  case ${opt} in
+    h )
+      printf '%b\n' "$hlpmsg"
+      exit 0
+      ;;
+    n )
+      nimg=$OPTARG
+      ;;
+    l )
+      lowpass=$OPTARG
+      ;;
+    c )
+      sigc=$OPTARG
+      ;;
+    p )
+      pixsize=$OPTARG
+      ;;
+    s )
+      scale=$OPTARG
+      ;;
+    x )
+      relimg_opt="$OPTARG"
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+# parse positional arguments
+idir="$1"
+odir="$2"
+
+if [ -z "$idir" ]; then
+    echo "Error: No input directory given."
+    printf '%b\n' "$hlpmsg"
+    exit 1
+fi
+
+[ -z "$odir" ] && odir="."
+
+# relion_image_handler available?
+bin_relimg="$(which relion_image_handler)"
+
+if [ -z "$bin_relimg" ]; then
+    echo "Error: Cannot find relion_image_handler. Please make sure to have relion installed and added to your PATH."
+    exit 1
+fi
+
+
+# input processing
+if [ "$nimg" -lt 1 ]; then
+    echo "Error: Number of images to generate must be 1 or greater. Exiting..."
+    exit 1
+fi
+
+if [ -n "$sigc" ]; then
+    sigc="--sigma_contrast $sigc"
+fi
+
+if [ "$lowpass" -gt 0 ]; then
+    lowpass="--lowpass $lowpass"
+else
+    lowpass=""
+fi
+
+if [ -z "$pixsize" ]; then
+    echo "Warning: No pixel size provided, skipping scaling..."
+    scale=""
+fi
+
+if [ -n "$pixsize" ]; then
+    if [ "$scale" -gt 0 ]; then
+        finalpix=$(echo "$pixsize * $scale" | bc -l)
+        pixsize="--angpix $pixsize"
+        scale="--rescale_angpix $finalpix"
+        echo "Output images will be scaled. Final pixel size will be $finalpix A/px."
+    else
+        echo "Warning: Scale factor must be > 0, skipping scaling..."
+        scale=""
+    fi
+fi
+
+#echo "nimg = $nimg"
+#echo "lowpass = $lowpass"
+#echo "pixsize = $pixsize"
+#echo "sigc = $sigc"
+
+### execution
+
+echo "Looking for mrc files in $idir"
+
+#rawfiles=($(ls "$idir"/*.mrc))
+rawfiles=($(find "$idir" -maxdepth 1 \( -type f -o -type l \) -name '*.mrc'))
+
+totalimgs=${#rawfiles[@]}
+
+for i in $(seq 1 $(($nimg))); do
+    ridx=$((RANDOM % totalimgs))
+    selimg=${rawfiles[ridx]}
+    
+    echo "Processing $(basename $selimg)"
+    relion_image_handler --i "$selimg" --o "$odir"/$(basename ${selimg%.*}.png) $pixsize $sigc $scale $lowpass "$relimg_opt"
+done
+
+
+wait
+
+echo "Thumbnails written to $odir"
+echo "Completed in $SECONDS seconds."
+exit 0
