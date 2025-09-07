@@ -2,60 +2,77 @@
 ## (cryo)EM toolbox
 Level 5 - scripts, programs, superweapons
 
-## Local Resolution Control Center (LRCC)
+A variety of helper scripts and useful programs to accelerate cryoEM data processing.
+
+Note: Files/scripts not listed below may be incomplete or placeholders and not ready for production.
+As usual, use at your own risk.
+
+
+## micronail
+Generate micrograph thumbnails
+
+Helpful wrapper for relion_image_handler to generate several thumbnails of randomly selected micrographs.
+
+written by Andreas U Mueller - 2025
+
+requirements: relion
+
+## lrcc
+Local Resolution Control Center (LRCC)
+
 Batch processor for blocres and blocfilt on cryoSPARC job output.
+
+written by Andreas U Mueller - 2021
 
 Batch process cryoSPARC job output with local resolution and local
 filtering using blocres/blocfilt.
 
-Usage: lrcc [options] input_folder [output_folder]
+## shoeshine
+Prepare a cryoSPARC job for Bayesian polishing in Relion.
 
-Point to one or more directories that each contain the half maps and a
-sharpened map.
+written by Andreas U Mueller - 2022
 
-Map files are recognized by pattern matching
-half map A        *map_half_A.mrc
-half map B        *map_half_B.mrc
-sharpened map     *map_sharp.mrc
-mask              *mask_refine.mrc
+Requirements: pyem >= 20220427
 
-This is the pattern employed by cryoSPARC, so LRCC can process
-map files directly from cryoSPARC job directories.
+## rln_class3d_timeline.py
 
-Positional arguments:
-    input_folder
-    output_folder
-Optional arguments:
-    -h                      Print this message.
+Collect relion statistics from all iterations in text files for downstream actions (e.g. plotting).
 
-    -b box_size             Choose kernel size for blocres/blocfilt
-                             default: 20
-    
-    -f                      Flip output maps (uses chimerax).
+written by Andreas U Mueller - 2022
+```
+Usage: rln_class3d_timeline.py path/to/Class3D/jobXXX/
+```
 
-    -j \"job1 job2 ...\"    Specify cryoSPARC jobs to process. If -j is
-                             not used, LRCC will search the input
-                             directory for maps and no batch processing
-                             will be performed.
+## rln_splitclass.py
 
-    -m mask.mrc             Provide a custom mask for blocres/blocfilt.
-                             default: *mask_refine.mrc
+Split particle stacks from relion data.star files by class.
+Also, produces output with particles reverted to original (if particle subtraction was done).
 
-    -M                      Turn off masking and compute full box.
+written by Andreas U Mueller - 2022
 
-    -n processes            Number of processes to parallelize.
-                             default: 1
+```
+Usage: rln_splitclass.py path/to/Class3D/jobXXX/
+Alternate: rln_splitclass.py path/to/Class3D/jobXXX/run_XXX_data.star
+```
 
-    -o x,y,z                Set origin coordinates.
-                             default: 0,0,0 ()
+## 3dfsc_cs.bash
 
-    -s sampling             Set bloc sampling. Generally, use the map
-                             pixel size (A/px).
+Small wrapper to run 3DFSC on cryoSPARC jobs (takes the last iteration).
+Uses refinement mask and computes on GPU.
 
-    -r resolution           Set maximum resolution in data (in Angstrom).
-                             Generally, twice the pixel size.
+written by Andreas U Mueller - 2022
 
-    -x \"-arg1 -arg2 ...\"  Pass additional arguments to blocres.
+```
+Usage: 3dfsc_cs.bash path/to/csproject/JXXX/ pixel_size
+```
 
-    -y \"-arg1 -arg2 ...\"  Pass additional arguments to blocfilt.
- 
+## pdb_analyze-bfactors.py
+
+Get an overview of your the bfactor values in your pdb file.
+With outlier report and histogram plot functionality.
+
+written by Andreas U Mueller - 2025
+
+```
+Usage: pdb_analyze-bfactors.py mymodel.pdb --hist
+```
