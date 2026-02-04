@@ -10,7 +10,7 @@ As usual, use at your own risk.
 ## check-pdb-seq.py
 Validate model sequence in pdb file against reference sequences
 
-Extracts sequence information for each chain from pdb file and compares against FASTA file containing the reference sequences; only reports mismatches, not gaps; only compares sequences/chains that exist in both model and reference sequence file (fasta headers must be named >chain_A, >chain_B, etc for correct assignment).
+Extracts sequence information for each chain from pdb file and compares against FASTA file containing the reference sequences; only reports mismatches, not gaps; only compares sequences/chains that exist in both model and reference sequence file (fasta headers must be named >refchain_A, >refchain_B, etc for correct assignment).
 
 requirements: Biopython
 
