@@ -17,6 +17,14 @@ Validate model sequence in pdb file against reference sequences
 
 Extracts sequence information for each chain from pdb file and compares against FASTA file containing the reference sequences; only reports mismatches, not gaps; only compares sequences/chains that exist in both model and reference sequence file (fasta headers must be named >refchain_A, >refchain_B, etc for correct assignment).
 
+Reference sequences in FASTA format must be labeled as
+refchain_A, refchain_B, refchain_C, and so on
+in the header. Example:
+```
+>refchain_A
+MLSHNDNENRHSNHDSWIASDIDPLQ
+```
+
 requirements: Biopython
 
 ## micronail
