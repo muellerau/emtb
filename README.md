@@ -7,6 +7,11 @@ Note: Files/scripts not listed below may be incomplete or placeholders and not r
 As usual, use at your own risk.
 
 
+## dump_gridfs.py
+Extract files from cryoSPARC <=v4 gridFS data.
+
+requirements: none
+
 ## check-pdb-seq.py
 Validate model sequence in pdb file against reference sequences
 
