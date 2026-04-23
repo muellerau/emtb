@@ -7,6 +7,12 @@ Note: Files/scripts not listed below may be incomplete or placeholders and not r
 As usual, use at your own risk.
 
 
+## validate_cif_seq.py
+Check sequences in the cif _entity_poly section against a FASTA reference.
+Useful for PDB depositions/author approval step.
+
+requirements: Biopython
+
 ## dump_gridfs.py
 Extract files from cryoSPARC <=v4 gridFS data.
 
